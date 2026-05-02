@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Color Match - Multiplayer</title>
+    <!-- Importando a biblioteca PeerJS para o Multiplayer P2P -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Poppins', sans-serif;
+            background-color: #0f1016;
+            color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Fundos Animados / Cores */
+        .color-preview-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 1;
+            transition: background-color 0.2s ease;
+            background-color: #0f1016;
+        }
+
+        .bg-shapes {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 2;
+            overflow: hidden;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            animation: float 10s infinite ease-in-out alternate;
+        }
+
+        .shape1 { background: #ff2a5f; width: 350px; height: 350px; top: -10%; left: -10%; }
+        .shape2 { background: #2a8bff; width: 450px; height: 450px; bottom: -20%; right: -10%; animation-delay: -3s; }
+        .shape3 { background: #00ff88; width: 250px; height: 250px; top: 40%; left: 50%; animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, 60px) scale(1.1); }
+        }
+
+        #game-container {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+        }
+
+        /* Telas */
+        .screen {
+            display: none;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            flex: 1;
+            gap: 15px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            position: relative;
+            z-index: 11;
+            padding: 20px 20px 40px 20px;
+            pointer-events: auto;
+        }
+
+        .screen.active {
+            display: flex;
+            opacity: 1;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .screen-center {
+            justify-content: center; /* Para as telas de menu */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Tipografia */
+        h1, h2, h3, p, label, .percentage { color: #fff; text-shadow: 0 0 15px rgba(0,0,0,0.7); margin: 0;}
+        h1 { font-size: 2.2rem; margin-bottom: 10px; font-weight: 800; }
+        h2 { font-size: 1.5rem; font-weight: 600; }
+        p { color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.5; }
+
+        /* UI de Vidro */
+        .glass-ui {
+            background: rgba(20, 20, 20, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            padding: 25px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            text-align: center;
+        }
+
+        /* Inputs de Texto */
+        input[type="text"] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px;
+            font-size: 1.5rem;
+            text-align: center;
+            border-radius: 15px;
+            outline: none;
+            font-weight: bold;
+            letter-spacing: 5px;
+        }
+        input[type="text"]::placeholder { color: rgba(255,255,255,0.4); letter-spacing: 1px; font-weight: normal;}
+
+        /* Sliders */
+        .sliders-wrapper { display: flex; flex-direction: column; gap: 18px; }
+        .slider-group { display: flex; flex-direction: column; text-align: left; gap: 8px; }
+        .slider-group label { font-size: 0.9rem; font-weight: 600; display: flex; justify-content: space-between; }
+        
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; height: 18px; border-radius: 12px; outline: none; margin: 0;
+            border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%;
+            background: #ffffff; border: 2px solid rgba(0,0,0,0.2); box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+        }
+        #hue-input { background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+
+        /* Botões */
+        button {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white; padding: 16px; font-size: 1.1rem; border-radius: 16px; cursor: pointer;
+            font-weight: 600; transition: all 0.2s; pointer-events: auto; text-transform: uppercase;
+        }
+        button:active { transform: scale(0.97); background: rgba(255, 255, 255, 0.25); }
+        .btn-primary { background: linear-gradient(135deg, rgba(42, 139, 255, 0.4), rgba(0, 255, 136, 0.4)); }
+
+        /* Timers */
+        .timer-huge { font-size: 8rem; font-weight: 800; line-height: 1; margin: 20px 0; }
+        .timer-small { font-size: 1.2rem; font-weight: bold; color: #ff2a5f; margin-bottom: 10px; }
+
+        /* Resultados */
+        .result-boxes { display: flex; width: 100%; gap: 10px; justify-content: center; margin-top: 15px; }
+        .player-col { flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .color-tile { width: 100%; max-width: 80px; height: 80px; border-radius: 20px; border: 3px solid rgba(255, 255, 255, 0.4); box-shadow: 0 5px 20px rgba(0,0,0,0.4); }
+        .percentage { font-size: 2rem; font-weight: 800; margin-top: 10px; }
+        .winner-text { font-size: 1.5rem; font-weight: bold; color: #00ff88; margin-bottom: 10px; }
+
+        .room-code-display { font-size: 3rem; font-weight: 800; letter-spacing: 5px; color: #00ff88; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<!-- Fundos -->
+<div id="target-color-full" class="color-preview-bg"></div>
+<div id="preview-color-full" class="color-preview-bg" style="opacity: 0;"></div>
+<div id="bg-shapes" class="bg-shapes">
+    <div class="shape shape1"></div>
+    <div class="shape shape2"></div>
+    <div class="shape shape3"></div>
+</div>
+
+<div id="game-container">
+    
+    <!-- Tela 1: Menu Principal -->
+    <div id="main-menu" class="screen screen-center active">
+        <div class="glass-ui">
+            <h1>🎨 Color Match</h1>
+            <p>Treine seus olhos e sua memória.</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="btn-primary" onclick="iniciarSinglePlayer()">👤 1 Player</button>
+                <button onclick="abrirLobbyMulti()">👥 Multiplayer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela 2: Lobby Multiplayer -->
+    <div id="mp-lobby" class="screen screen-center">
+        <div class="glass-ui">
+            <h2>Multiplayer</h2>
+            <p>Jogue contra um amigo em tempo real!</p>
+            <button class="btn-primary" onclick="criarSala()">Criar Sala (Host)</button>
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); width: 100%;">
+            <input type="text" id="room-code-input" placeholder="CÓDIGO" maxlength="4">
+            <button onclick="entrarSala()">Entrar na Sala</button>
+            <button style="background: transparent; border: none; font-size: 0.9rem;" onclick="showScreen('main-menu')">Voltar</button>
+        </div>
+    </div>
+
+    <!-- Tela 3: Host Aguardando -->
+    <div id="mp-host-wait" class="screen screen-center">
+        <div class="glass-ui">
+            <h2>Sala Criada!</h2>
+            <p>Passe este código para o seu amigo:</p>
+            <div class="room-code-display" id="display-room-code">----</div>
+            <p id="host-status">Aguardando jogador...</p>
+            <button style="background: transparent; border: none; font-size: 0.9rem;" onclick="cancelarSala()">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Tela 4: Memorização -->
+    <div id="memorize-screen" class="screen screen-center">
+        <div class="glass-ui" style="background: transparent; border: none; box-shadow: none;">
+            <h2>Memorize a cor!</h2>
+            <div id="timer-memorize" class="timer-huge">5</div>
+        </div>
+    </div>
+
+    <!-- Tela 5: Jogo / Sliders -->
+    <div id="play-screen" class="screen">
+        <div class="glass-ui">
+            <div id="timer-play" class="timer-small">Tempo: 20s</div>
+            <div class="sliders-wrapper">
+                <div class="slider-group">
+                    <label>Matiz <span id="hue-val">0°</span></label>
+                    <input type="range" id="hue-input" min="0" max="360" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>Branco <span id="white-val">0%</span></label>
+                    <input type="range" id="white-input" min="0" max="100" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>Preto <span id="black-val">0%</span></label>
+                    <input type="range" id="black-input" min="0" max="100" value="0">
+                </div>
+            </div>
+            <button class="btn-primary" onclick="confirmarCor()">Confirmar Cor</button>
+        </div>
+    </div>
+
+    <!-- Tela 6: Aguardando Oponente (Multiplayer) -->
+    <div id="wait-opponent-screen" class="screen screen-center">
+        <div class="glass-ui">
+            <h2>Cor Confirmada!</h2>
+            <p>Aguardando o oponente terminar...</p>
+        </div>
+    </div>
+
+    <!-- Tela 7: Resultado -->
+    <div id="result-screen" class="screen screen-center">
+        <div class="glass-ui">
+            <div id="winner-msg" class="winner-text">Resultado</div>
+            
+            <!-- Original -->
+            <div style="margin: 0 auto; width: 100px;">
+                <div id="res-target" class="color-tile" style="margin: 0 auto;"></div>
+                <p style="font-size: 0.8rem; margin-top: 5px;">Original</p>
+            </div>
+
+            <!-- Jogadores -->
+            <div class="result-boxes">
+                <div class="player-col">
+                    <div id="res-p1-color" class="color-tile"></div>
+                    <p style="font-size: 0.8rem; margin-top: 5px;">Você</p>
+                    <div id="res-p1-score" class="percentage">0%</div>
+                </div>
+                <div class="player-col" id="p2-result-col">
+                    <div id="res-p2-color" class="color-tile"></div>
+                    <p style="font-size: 0.8rem; margin-top: 5px;">Oponente</p>
+                    <div id="res-p2-score" class="percentage">0%</div>
+                </div>
+            </div>
+            
+            <button id="btn-play-again" class="btn-primary" onclick="resetarParaMenu()">Menu Principal</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // === ESTADO DO JOGO ===
+    let modoJogo = 'single'; // 'single' ou 'multi'
+    let isHost = false;
+    let peer = null;
+    let conn = null;
+    
+    let targetRGB = [];
+    let myRGB = [];
+    let myScore = null;
+    
+    let oppRGB = [];
+    let oppScore = null;
+
+    let intervalMemorize;
+    let intervalPlay;
+
+    // === ELEMENTOS UI ===
+    const bgs = {
+        target: document.getElementById('target-color-full'),
+        preview: document.getElementById('preview-color-full'),
+        shapes: document.getElementById('bg-shapes')
+    };
+
+    const inputs = {
+        h: document.getElementById('hue-input'),
+        w: document.getElementById('white-input'),
+        b: document.getElementById('black-input')
+    };
+
+    // NAVEGAÇÃO DE TELAS
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        setTimeout(() => { document.getElementById(screenId).classList.add('active'); }, 50);
+        
+        // Esconde/Mostra os shapes de fundo dependendo da tela
+        if (['memorize-screen', 'play-screen'].includes(screenId)) {
+            bgs.shapes.style.opacity = '0';
+        } else {
+            bgs.shapes.style.opacity = '1';
+        }
+    }
+
+    function resetarFundos() {
+        bgs.target.style.opacity = '0';
+        bgs.preview.style.opacity = '0';
+        bgs.target.style.backgroundColor = '#0f1016';
+    }
+
+    // === LÓGICA SINGLE PLAYER ===
+    function iniciarSinglePlayer() {
+        modoJogo = 'single';
+        gerarCorAleatoria();
+        iniciarFaseMemorizacao();
+    }
+
+    // === LÓGICA MULTIPLAYER (PEER JS) ===
+    function abrirLobbyMulti() {
+        showScreen('mp-lobby');
+    }
+
+    function criarSala() {
+        modoJogo = 'multi';
+        isHost = true;
+        document.getElementById('host-status').innerText = "Conectando ao servidor...";
+        showScreen('mp-host-wait');
+
+        const code = Math.floor(1000 + Math.random() * 9000).toString();
+        document.getElementById('display-room-code').innerText = code;
+
+        peer = new Peer('cmatch-' + code);
+
+        peer.on('open', () => {
+            document.getElementById('host-status').innerText = "Aguardando jogador...";
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            document.getElementById('host-status').innerText = "Jogador conectado! Iniciando...";
+            configurarRecepcaoDados();
+            setTimeout(() => {
+                gerarCorAleatoria();
+                conn.send({ type: 'START', color: targetRGB });
+                iniciarFaseMemorizacao();
+            }, 1500);
+        });
+    }
+
+    function entrarSala() {
+        const code = document.getElementById('room-code-input').value.trim();
+        if (code.length !== 4) return alert("Digite um código de 4 números.");
+
+        modoJogo = 'multi';
+        isHost = false;
+        
+        peer = new Peer(); // Guest não precisa de ID fixo
+        peer.on('open', () => {
+            conn = peer.connect('cmatch-' + code);
+            conn.on('open', () => {
+                configurarRecepcaoDados();
+            });
+            conn.on('error', () => {
+                alert("Sala não encontrada!");
+            });
+        });
+    }
+
+    function cancelarSala() {
+        if (peer) { peer.destroy(); peer = null; }
+        showScreen('mp-lobby');
+    }
+
+    function configurarRecepcaoDados() {
+        conn.on('data', (dados) => {
+            if (dados.type === 'START') {
+                targetRGB = dados.color;
+                iniciarFaseMemorizacao();
+            }
+            if (dados.type === 'SCORE') {
+                oppScore = dados.score;
+                oppRGB = dados.guessRGB;
+                verificarFimMultiplayer();
+            }
+        });
+    }
+
+    // === FLUXO DO JOGO ===
+    function gerarCorAleatoria() {
+        const h = Math.floor(Math.random() * 361);
+        const w = Math.floor(Math.random() * 50);
+        const b = Math.floor(Math.random() * 50);
+        targetRGB = hwbToRgb(h, w, b);
+    }
+
+    function iniciarFaseMemorizacao() {
+        bgs.target.style.backgroundColor = `rgb(${targetRGB.join(',')})`;
+        bgs.target.style.opacity = '1';
+        bgs.preview.style.opacity = '0';
+        
+        showScreen('memorize-screen');
+        let tempo = 5;
+        document.getElementById('timer-memorize').textContent = tempo;
+
+        clearInterval(intervalMemorize);
+        intervalMemorize = setInterval(() => {
+            tempo--;
+            document.getElementById('timer-memorize').textContent = tempo;
+            if (tempo <= 0) {
+                clearInterval(intervalMemorize);
+                iniciarFaseEscolha();
+            }
+        }, 1000);
+    }
+
+    function iniciarFaseEscolha() {
+        bgs.target.style.opacity = '0';
+        bgs.preview.style.opacity = '1';
+        
+        // Reseta Sliders
+        inputs.h.value = Math.floor(Math.random() * 361);
+        inputs.w.value = 0; inputs.b.value = 0;
+        atualizarPrevia();
+        
+        showScreen('play-screen');
+
+        let tempoPlay = 20;
+        document.getElementById('timer-play').textContent = `Tempo: ${tempoPlay}s`;
+
+        clearInterval(intervalPlay);
+        intervalPlay = setInterval(() => {
+            tempoPlay--;
+            document.getElementById('timer-play').textContent = `Tempo: ${tempoPlay}s`;
+            if (tempoPlay <= 0) {
+                clearInterval(intervalPlay);
+                confirmarCor(); // Confirma automático se o tempo acabar
+            }
+        }, 1000);
+    }
+
+    function atualizarPrevia() {
+        const h = parseInt(inputs.h.value);
+        const w = parseInt(inputs.w.value);
+        const b = parseInt(inputs.b.value);
+
+        document.getElementById('hue-val').textContent = h + '°';
+        document.getElementById('white-val').textContent = w + '%';
+        document.getElementById('black-val').textContent = b + '%';
+
+        const rgb = hwbToRgb(h, w, b);
+        bgs.preview.style.backgroundColor = `rgb(${rgb.join(',')})`;
+
+        const baseColor = `hsl(${h}, 100%, 50%)`;
+        inputs.w.style.background = `linear-gradient(to right, ${baseColor}, white)`;
+        inputs.b.style.background = `linear-gradient(to right, ${baseColor}, black)`;
+    }
+
+    inputs.h.addEventListener('input', atualizarPrevia);
+    inputs.w.addEventListener('input', atualizarPrevia);
+    inputs.b.addEventListener('input', atualizarPrevia);
+
+    function confirmarCor() {
+        clearInterval(intervalPlay);
+        const h = parseInt(inputs.h.value);
+        const w = parseInt(inputs.w.value);
+        const b = parseInt(inputs.b.value);
+        myRGB = hwbToRgb(h, w, b);
+
+        // Calcula a pontuação baseada na distância 3D do RGB
+        const dist = Math.sqrt(Math.pow(targetRGB[0]-myRGB[0], 2) + Math.pow(targetRGB[1]-myRGB[1], 2) + Math.pow(targetRGB[2]-myRGB[2], 2));
+        const maxDist = Math.sqrt(3 * 255 * 255);
+        myScore = Math.max(0, 100 - ((dist / maxDist) * 100));
+
+        if (modoJogo === 'single') {
+            mostrarResultados();
+        } else {
+            // Multiplayer
+            conn.send({ type: 'SCORE', score: myScore, guessRGB: myRGB });
+            showScreen('wait-opponent-screen');
+            verificarFimMultiplayer();
+        }
+    }
+
+    function verificarFimMultiplayer() {
+        if (myScore !== null && oppScore !== null) {
+            mostrarResultados();
+        }
+    }
+
+    function mostrarResultados() {
+        resetarFundos();
+        
+        // Alimenta dados
+        document.getElementById('res-target').style.backgroundColor = `rgb(${targetRGB.join(',')})`;
+        document.getElementById('res-p1-color').style.backgroundColor = `rgb(${myRGB.join(',')})`;
+        document.getElementById('res-p1-score').textContent = myScore.toFixed(1) + '%';
+
+        const p2Col = document.getElementById('p2-result-col');
+        const winnerMsg = document.getElementById('winner-msg');
+
+        if (modoJogo === 'single') {
+            p2Col.style.display = 'none';
+            if (myScore > 90) winnerMsg.textContent = "Visão de Águia! 🦅";
+            else if (myScore > 75) winnerMsg.textContent = "Muito Bom! 👍";
+            else winnerMsg.textContent = "Precisa Praticar! 😅";
+            winnerMsg.style.color = "#ffffff";
+        } else {
+            p2Col.style.display = 'flex';
+            document.getElementById('res-p2-color').style.backgroundColor = `rgb(${oppRGB.join(',')})`;
+            document.getElementById('res-p2-score').textContent = oppScore.toFixed(1) + '%';
+
+            if (myScore > oppScore) {
+                winnerMsg.textContent = "🏆 Você Venceu!";
+                winnerMsg.style.color = "#00ff88";
+            } else if (oppScore > myScore) {
+                winnerMsg.textContent = "💀 Você Perdeu!";
+                winnerMsg.style.color = "#ff2a5f";
+            } else {
+                winnerMsg.textContent = "Empate!";
+                winnerMsg.style.color = "#ffffff";
+            }
+        }
+
+        showScreen('result-screen');
+    }
+
+    function resetarParaMenu() {
+        if (peer) { peer.destroy(); peer = null; }
+        conn = null;
+        myScore = null;
+        oppScore = null;
+        resetarFundos();
+        showScreen('main-menu');
+    }
+
+    // === UTILITÁRIO DE COR ===
+    function hwbToRgb(h, w, b) {
+        w = w / 100; b = b / 100;
+        if (w + b >= 1) {
+            let gray = Math.round((w / (w + b)) * 255);
+            return [gray, gray, gray];
+        }
+        let c = 1; let x = c * (1 - Math.abs(((h / 60) % 2) - 1)); let m = 0;
+        let r_p = 0, g_p = 0, b_p = 0;
+        if (h >= 0 && h < 60) { r_p = c; g_p = x; b_p = 0; }
+        else if (h >= 60 && h < 120) { r_p = x; g_p = c; b_p = 0; }
+        else if (h >= 120 && h < 180) { r_p = 0; g_p = c; b_p = x; }
+        else if (h >= 180 && h < 240) { r_p = 0; g_p = x; b_p = c; }
+        else if (h >= 240 && h < 300) { r_p = x; g_p = 0; b_p = c; }
+        else if (h >= 300 && h < 360) { r_p = c; g_p = 0; b_p = x; }
+        let r = Math.round((r_p + m) * 255); let g = Math.round((g_p + m) * 255); let bl = Math.round((b_p + m) * 255);
+        r = Math.round(r * (1 - w - b) + (w * 255)); g = Math.round(g * (1 - w - b) + (w * 255)); bl = Math.round(bl * (1 - w - b) + (w * 255));
+        return [r, g, bl];
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Zafra Games</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;900&family=Space+Mono:wght@400;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation; 
+            
+            -webkit-user-select: none; 
+            -moz-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none; 
+            -webkit-touch-callout: none; 
+            -webkit-user-drag: none; 
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Poppins', sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* FUNDOS ANIMADOS */
+        .color-preview-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 1;
+            transition: background-color 0.4s ease;
+            background-color: #000000;
+        }
+
+        .bg-shapes {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 2;
+            overflow: hidden;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px); 
+            animation: float 15s infinite ease-in-out alternate;
+            opacity: 0.15; 
+        }
+
+        .shape1 { background: #00ff88; width: 50vw; height: 50vw; top: -10%; left: -10%; }
+        .shape2 { background: #00d2ff; width: 60vw; height: 60vw; bottom: -10%; right: -10%; animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, 50px) scale(1.1); }
+        }
+
+        #game-container {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+        }
+
+        /* TELAS BASE */
+        .screen {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            position: relative;
+            z-index: 11;
+            padding: 20px;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            pointer-events: auto;
+            width: 100%;
+            height: 100%;
+        }
+
+        .screen.active {
+            display: flex;
+            opacity: 1;
+            animation: fadeInScale 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); filter: blur(10px); }
+            to { opacity: 1; transform: scale(1); filter: blur(0); }
+        }
+
+        /* MENU INOVADOR */
+        .hero-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .mega-title {
+            font-size: clamp(4rem, 15vw, 8rem);
+            font-weight: 900;
+            line-height: 0.85;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            background: linear-gradient(180deg, #ffffff 0%, #a0a0a0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 10px 40px rgba(255,255,255,0.1);
+        }
+
+        .mega-title span {
+            background: linear-gradient(90deg, #00ff88, #00d2ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tech-info {
+            position: absolute;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            pointer-events: auto; /* Permite clique nos cantos */
+        }
+        .tech-top-left { top: 30px; left: 30px; }
+        .tech-top-right { top: 30px; right: 30px; text-align: right; }
+
+        /* Easter Egg Texto */
+        #neon-word {
+            transition: all 0.3s;
+        }
+
+        .menu-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* UI DE VIDRO */
+        .glass-ui {
+            background: rgba(10, 10, 12, 0.6); 
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.9);
+            padding: 30px;
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+
+        /* BOTOES PÍLULA */
+        button {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; 
+            padding: 16px 24px; 
+            font-size: 1rem; 
+            border-radius: 50px; 
+            cursor: pointer;
+            font-weight: 600; 
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            text-transform: uppercase; 
+            letter-spacing: 1.5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        button:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
+        button:active { transform: scale(0.95); background: rgba(0, 0, 0, 0.8); }
+        button:disabled { opacity: 0.3; pointer-events: none; }
+
+        .btn-neon { 
+            background: rgba(0, 255, 136, 0.1); 
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            color: #00ff88;
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.15);
+        }
+        .btn-neon:hover { 
+            background: rgba(0, 255, 136, 0.2); 
+            box-shadow: 0 10px 40px rgba(0, 255, 136, 0.3);
+            border-color: #00ff88;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.7);
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+        /* INPUTS */
+        input[type="text"] {
+            -webkit-user-select: auto;
+            -moz-user-select: auto;
+            -ms-user-select: auto;
+            user-select: auto;
+            
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5); 
+            border: none;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            color: #00ff88;
+            padding: 15px;
+            font-size: 1.5rem;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+            outline: none;
+            font-weight: 900;
+            letter-spacing: 5px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus { border-color: #00ff88; }
+        input[type="text"]::placeholder { color: rgba(255,255,255,0.1); letter-spacing: 2px;}
+
+        /* SLIDERS E TEXTOS COMUNS */
+        h2 { font-size: 1.5rem; font-weight: 600; margin: 0; }
+        p.subtitle { color: rgba(255, 255, 255, 0.5); font-size: 0.9rem; margin: 0;}
+        .timer-huge { font-size: 8rem; font-weight: 900; line-height: 1; text-shadow: 0 0 50px rgba(0, 255, 136, 0.4); color: #fff; margin: 0; }
+        .timer-small { font-size: 1.2rem; font-weight: 900; color: #00d2ff; letter-spacing: 2px;}
+
+        .sliders-wrapper { display: flex; flex-direction: column; gap: 15px; width: 100%; margin-top: 10px;}
+        .slider-group label { font-size: 0.8rem; font-weight: 600; display: flex; justify-content: space-between; color: rgba(255, 255, 255, 0.6); margin-bottom: 5px; }
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; height: 4px; border-radius: 10px; outline: none; background: rgba(255,255,255,0.1); 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 4px solid #000; transition: 0.2s;
+        }
+        input[type=range]::-webkit-slider-thumb:active { transform: scale(1.3); }
+        #hue-input { background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+
+        /* RESULTADOS SPLIT-SCREEN CORES LISAS */
+        #result-screen { padding: 0; }
+
+        .split-screen-layout {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: row; 
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1;
+        }
+
+        .players-column { flex: 1; display: flex; flex-direction: column; }
+        .target-column { flex: 1; display: flex; flex-direction: column; }
+
+        .color-slice {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding-bottom: 120px; 
+            gap: 10px;
+        }
+
+        .slice-label {
+            font-size: clamp(0.7rem, 3vw, 1rem);
+            font-weight: 900;
+            color: rgba(255,255,255,0.9);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: rgba(0,0,0,0.5); 
+            padding: 6px 12px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .slice-score {
+            font-size: clamp(2.5rem, 8vw, 4.5rem); 
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 5px 30px rgba(0,0,0,0.8);
+            line-height: 1;
+            background: rgba(0,0,0,0.2);
+            padding: 0 10px;
+            border-radius: 12px;
+        }
+
+        /* DOCK FLUTUANTE DE RODAPÉ */
+        .result-dock {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            background: linear-gradient(to top, rgba(5, 5, 8, 0.95) 0%, rgba(10, 10, 12, 0.8) 100%);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 20px 25px calc(20px + env(safe-area-inset-bottom)) 25px;
+            border-radius: 35px 35px 0 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 -15px 50px rgba(0,0,0,0.7);
+        }
+
+        #winner-msg {
+            font-size: 1.4rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+            text-shadow: 0 0 15px rgba(0,255,136,0.3);
+        }
+
+        .dock-actions {
+            display: flex;
+            flex-direction: row; 
+            gap: 10px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .dock-actions button {
+            flex: 1; 
+            padding: 14px;
+            font-size: 0.85rem;
+        }
+
+        .room-code-display { font-size: 2.5rem; font-weight: 900; letter-spacing: 8px; color: #00ff88; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<!-- Fundos -->
+<div id="target-color-full" class="color-preview-bg"></div>
+<div id="preview-color-full" class="color-preview-bg" style="opacity: 0;"></div>
+<div id="bg-shapes" class="bg-shapes">
+    <div class="shape shape1"></div>
+    <div class="shape shape2"></div>
+</div>
+
+<div id="game-container">
+    
+    <!-- TELA 1: MENU PRINCIPAL INOVADOR -->
+    <div id="main-menu" class="screen active">
+        <!-- Alteração aqui: ID e evento onclick para o Easter Egg -->
+        <div class="tech-info tech-top-left">SYS.VER 3.1.4<br><span id="neon-word" onclick="handleNeonClick()" style="padding: 5px; margin: -5px;">NEON</span> ENGINE</div>
+        <div class="tech-info tech-top-right">P2P NETWORK<br>LATENCY: LOW</div>
+
+        <div class="hero-menu">
+            <h1 class="mega-title">ZAFRA<br><span>GAMES</span></h1>
+            <p class="subtitle" style="margin-top: 15px; font-weight: 400; letter-spacing: 1px;">Sincronize a sua visão.</p>
+        </div>
+        
+        <div class="menu-actions">
+            <button class="btn-neon" onclick="iniciarSinglePlayer()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Treinamento Solo
+            </button>
+            <button onclick="abrirLobbyMulti()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                Multiplayer Online
+            </button>
+        </div>
+    </div>
+
+    <!-- Tela 2: Lobby Multiplayer -->
+    <div id="mp-lobby" class="screen">
+        <div class="glass-ui">
+            <h2>Conexão P2P</h2>
+            <p class="subtitle">Conecte-se diretamente a outro jogador.</p>
+            
+            <button class="btn-neon" onclick="criarSala()">Criar Servidor Local</button>
+            
+            <div style="width: 100%; height: 1px; background: rgba(255,255,255,0.1); margin: 5px 0;"></div>
+            
+            <input type="text" id="room-code-input" placeholder="CÓDIGO" maxlength="4" inputmode="numeric" autocomplete="off">
+            <button onclick="entrarSala()">Conectar a Sala</button>
+            
+            <button style="background: transparent; border: none; font-size: 0.8rem; color: rgba(255,255,255,0.4);" onclick="showScreen('main-menu')">← Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Tela 3: Host Aguardando -->
+    <div id="mp-host-wait" class="screen">
+        <div class="glass-ui">
+            <h2>Hospedando Partida</h2>
+            <p class="subtitle">Seu código de acesso único:</p>
+            <div class="room-code-display" id="display-room-code">----</div>
+            <p id="host-status" style="font-family: 'Space Mono', monospace; font-size: 0.8rem; color: #00d2ff; text-transform: uppercase;">Aguardando Ping...</p>
+            <button style="background: transparent; border: 1px solid rgba(255,255,255,0.1);" onclick="cancelarSala()">Encerrar Sessão</button>
+        </div>
+    </div>
+
+    <!-- Tela 4: Memorização -->
+    <div id="memorize-screen" class="screen">
+        <div style="display:flex; flex-direction:column; align-items:center; z-index: 10;">
+            <p class="tech-info" style="position:relative; margin-bottom: 20px; font-size: 1rem;">>>> CALIBRANDO VISÃO <<<</p>
+            <div id="timer-memorize" class="timer-huge">5</div>
+        </div>
+    </div>
+
+    <!-- Tela 5: Jogo / Sliders -->
+    <div id="play-screen" class="screen">
+        <div class="glass-ui" style="margin-top: auto; margin-bottom: 20px;">
+            <div id="timer-play" class="timer-small">TEMPO RESTANTE: 20s</div>
+            <div class="sliders-wrapper">
+                <div class="slider-group">
+                    <label>Matiz (Cor) <span id="hue-val">0°</span></label>
+                    <input type="range" id="hue-input" min="0" max="360" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>Luminosidade (Branco) <span id="white-val">0%</span></label>
+                    <input type="range" id="white-input" min="0" max="100" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>Sombra (Preto) <span id="black-val">0%</span></label>
+                    <input type="range" id="black-input" min="0" max="100" value="0">
+                </div>
+            </div>
+            <button class="btn-neon" onclick="confirmarCor()" style="margin-top: 15px;">Travar Seleção</button>
+        </div>
+    </div>
+
+    <!-- Tela 6: Aguardando Oponente -->
+    <div id="wait-opponent-screen" class="screen">
+        <div class="glass-ui">
+            <h2>Sincronizando...</h2>
+            <p class="subtitle">Aguardando resposta do oponente.</p>
+        </div>
+    </div>
+
+    <!-- TELA 7: RESULTADOS SPLIT-SCREEN FLAT -->
+    <div id="result-screen" class="screen">
+        <div class="split-screen-layout">
+            <div class="players-column">
+                <div id="block-p1" class="color-slice">
+                    <span class="slice-label">Você</span>
+                    <span id="score-p1" class="slice-score">0%</span>
+                </div>
+                <div id="block-p2" class="color-slice">
+                    <span class="slice-label" style="color: #00d2ff;">Oponente</span>
+                    <span id="score-p2" class="slice-score">0%</span>
+                </div>
+            </div>
+            <div id="block-target" class="target-column color-slice">
+                <span class="slice-label" style="color: #fff; border-color: rgba(255,255,255,0.4);">Alvo Original</span>
+            </div>
+        </div>
+        
+        <div class="result-dock">
+            <h2 id="winner-msg" style="color: #00ff88;">Analisando...</h2>
+            <div class="dock-actions">
+                <button class="btn-outline" onclick="resetarParaMenu()">
+                    Sair
+                </button>
+                <button id="btn-restart-match" class="btn-neon" onclick="reiniciarPartida()">
+                    Jogar Novamente
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // === ESTADO DO JOGO E VARIÁVEIS ===
+    let modoJogo = 'single';
+    let isHost = false;
+    let peer = null;
+    let conn = null;
+    
+    // Novas variáveis para guardar a cor HWB exata para o Easter Egg
+    let targetH = 0, targetW = 0, targetB = 0; 
+    let targetRGB = [];
+    let myRGB = [];
+    let myScore = null;
+    
+    let oppRGB = [];
+    let oppScore = null;
+
+    let intervalMemorize;
+    let intervalPlay;
+
+    // Easter Egg State
+    let easterEggAtivado = false;
+    let clickCount = 0;
+    let clickTimer = null;
+
+    // === ELEMENTOS UI ===
+    const bgs = {
+        target: document.getElementById('target-color-full'),
+        preview: document.getElementById('preview-color-full'),
+        shapes: document.getElementById('bg-shapes')
+    };
+
+    const inputs = {
+        h: document.getElementById('hue-input'),
+        w: document.getElementById('white-input'),
+        b: document.getElementById('black-input')
+    };
+
+    let transitionTimeout;
+
+    // === EASTER EGG LOGIC ===
+    function handleNeonClick() {
+        clickCount++;
+        if (clickCount === 1) {
+            clickTimer = setTimeout(() => { clickCount = 0; }, 400); // Reseta se demorar mais que 400ms para o segundo toque
+        } else if (clickCount === 2) {
+            clearTimeout(clickTimer);
+            clickCount = 0;
+            easterEggAtivado = !easterEggAtivado;
+            
+            const neonWord = document.getElementById('neon-word');
+            if (easterEggAtivado) {
+                neonWord.style.color = '#ff00ff';
+                neonWord.style.textShadow = '0 0 10px #ff00ff';
+            } else {
+                neonWord.style.color = '';
+                neonWord.style.textShadow = '';
+            }
+        }
+    }
+
+    function showScreen(screenId) {
+        clearTimeout(transitionTimeout);
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        
+        transitionTimeout = setTimeout(() => { 
+            document.getElementById(screenId).classList.add('active'); 
+        }, 50);
+        
+        if (['memorize-screen', 'play-screen', 'result-screen'].includes(screenId)) {
+            bgs.shapes.style.opacity = '0';
+        } else {
+            bgs.shapes.style.opacity = '0.15';
+        }
+    }
+
+    function resetarFundos() {
+        bgs.target.style.opacity = '0';
+        bgs.preview.style.opacity = '0';
+        bgs.target.style.backgroundColor = '#000000';
+    }
+
+    // === LÓGICA SINGLE PLAYER ===
+    function iniciarSinglePlayer() {
+        modoJogo = 'single';
+        gerarCorAleatoria();
+        iniciarFaseMemorizacao();
+    }
+
+    // === LÓGICA MULTIPLAYER (PEER JS) ===
+    function abrirLobbyMulti() {
+        showScreen('mp-lobby');
+    }
+
+    function criarSala() {
+        modoJogo = 'multi';
+        isHost = true;
+        document.getElementById('host-status').innerText = "Iniciando servidor P2P...";
+        showScreen('mp-host-wait');
+
+        const code = Math.floor(1000 + Math.random() * 9000).toString();
+        document.getElementById('display-room-code').innerText = code;
+
+        peer = new Peer('cmatch-' + code);
+
+        peer.on('open', () => {
+            document.getElementById('host-status').innerText = "Aguardando conexão...";
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            document.getElementById('host-status').innerText = "Adversário conectado!";
+            document.getElementById('host-status').style.color = "#00ff88";
+            configurarRecepcaoDados();
+            setTimeout(() => {
+                gerarCorAleatoria();
+                // Envia os dados HWB pelo Host para o Guest poder usar o Easter Egg tbm
+                conn.send({ type: 'START', color: targetRGB, hwb: [targetH, targetW, targetB] });
+                iniciarFaseMemorizacao();
+            }, 1000);
+        });
+    }
+
+    function entrarSala() {
+        const code = document.getElementById('room-code-input').value.trim();
+        if (code.length !== 4) return alert("Digite um código válido de 4 dígitos.");
+
+        modoJogo = 'multi';
+        isHost = false;
+        
+        peer = new Peer();
+        peer.on('open', () => {
+            conn = peer.connect('cmatch-' + code);
+            conn.on('open', () => {
+                configurarRecepcaoDados();
+            });
+            conn.on('error', () => {
+                alert("Sala não encontrada! Verifique o código.");
+            });
+        });
+    }
+
+    function cancelarSala() {
+        if (peer) { peer.destroy(); peer = null; }
+        showScreen('mp-lobby');
+    }
+
+    function configurarRecepcaoDados() {
+        conn.on('data', (dados) => {
+            if (dados.type === 'START') {
+                targetRGB = dados.color;
+                if (dados.hwb) { // Se recebeu os dados HWB exatos do Host
+                    targetH = dados.hwb[0];
+                    targetW = dados.hwb[1];
+                    targetB = dados.hwb[2];
+                }
+                iniciarFaseMemorizacao();
+            }
+            if (dados.type === 'SCORE') {
+                oppScore = dados.score;
+                oppRGB = dados.guessRGB;
+                verificarFimMultiplayer();
+            }
+        });
+
+        conn.on('close', () => {
+            alert("Sessão finalizada pelo oponente.");
+            resetarParaMenu();
+        });
+    }
+
+    // === FLUXO DO JOGO ===
+    function gerarCorAleatoria() {
+        targetH = Math.floor(Math.random() * 361);
+        targetW = Math.floor(Math.random() * 50);
+        targetB = Math.floor(Math.random() * 50);
+        targetRGB = hwbToRgb(targetH, targetW, targetB);
+    }
+
+    function reiniciarPartida() {
+        if (modoJogo === 'single') {
+            iniciarSinglePlayer();
+        } else if (modoJogo === 'multi' && isHost) {
+            gerarCorAleatoria();
+            conn.send({ type: 'START', color: targetRGB, hwb: [targetH, targetW, targetB] });
+            iniciarFaseMemorizacao();
+        }
+    }
+
+    function iniciarFaseMemorizacao() {
+        myScore = null;
+        oppScore = null;
+        myRGB = [];
+        oppRGB = [];
+
+        bgs.target.style.backgroundColor = `rgb(${targetRGB.join(',')})`;
+        bgs.target.style.opacity = '1';
+        bgs.preview.style.opacity = '0';
+        
+        showScreen('memorize-screen');
+        let tempo = 5;
+        document.getElementById('timer-memorize').textContent = tempo;
+
+        clearInterval(intervalMemorize);
+        intervalMemorize = setInterval(() => {
+            tempo--;
+            document.getElementById('timer-memorize').textContent = tempo;
+            if (tempo <= 0) {
+                clearInterval(intervalMemorize);
+                iniciarFaseEscolha();
+            }
+        }, 1000);
+    }
+
+    function iniciarFaseEscolha() {
+        bgs.target.style.opacity = '0';
+        bgs.preview.style.opacity = '1';
+        
+        // Aplicação do Easter Egg na hora de montar a tela
+        if (easterEggAtivado) {
+            inputs.h.value = targetH;
+            inputs.w.value = targetW;
+            inputs.b.value = targetB;
+        } else {
+            inputs.h.value = Math.floor(Math.random() * 361);
+            inputs.w.value = 0; 
+            inputs.b.value = 0;
+        }
+        
+        atualizarPrevia();
+        
+        showScreen('play-screen');
+
+        let tempoPlay = 20;
+        document.getElementById('timer-play').textContent = `RESTAM: ${tempoPlay}s`;
+
+        clearInterval(intervalPlay);
+        intervalPlay = setInterval(() => {
+            tempoPlay--;
+            document.getElementById('timer-play').textContent = `RESTAM: ${tempoPlay}s`;
+            if (tempoPlay <= 0) {
+                clearInterval(intervalPlay);
+                confirmarCor(); 
+            }
+        }, 1000);
+    }
+
+    function atualizarPrevia() {
+        const h = parseInt(inputs.h.value);
+        const w = parseInt(inputs.w.value);
+        const b = parseInt(inputs.b.value);
+
+        document.getElementById('hue-val').textContent = h + '°';
+        document.getElementById('white-val').textContent = w + '%';
+        document.getElementById('black-val').textContent = b + '%';
+
+        const rgb = hwbToRgb(h, w, b);
+        bgs.preview.style.backgroundColor = `rgb(${rgb.join(',')})`;
+
+        const baseColor = `hsl(${h}, 100%, 50%)`;
+        inputs.w.style.background = `linear-gradient(to right, ${baseColor}, white)`;
+        inputs.b.style.background = `linear-gradient(to right, ${baseColor}, black)`;
+    }
+
+    inputs.h.addEventListener('input', atualizarPrevia);
+    inputs.w.addEventListener('input', atualizarPrevia);
+    inputs.b.addEventListener('input', atualizarPrevia);
+
+    function confirmarCor() {
+        clearInterval(intervalPlay);
+        const h = parseInt(inputs.h.value);
+        const w = parseInt(inputs.w.value);
+        const b = parseInt(inputs.b.value);
+        myRGB = hwbToRgb(h, w, b);
+
+        const dist = Math.sqrt(Math.pow(targetRGB[0]-myRGB[0], 2) + Math.pow(targetRGB[1]-myRGB[1], 2) + Math.pow(targetRGB[2]-myRGB[2], 2));
+        const maxDist = Math.sqrt(3 * 255 * 255);
+        myScore = Math.max(0, 100 - ((dist / maxDist) * 100));
+
+        if (modoJogo === 'single') {
+            mostrarResultados();
+        } else {
+            conn.send({ type: 'SCORE', score: myScore, guessRGB: myRGB });
+            showScreen('wait-opponent-screen');
+            verificarFimMultiplayer();
+        }
+    }
+
+    function verificarFimMultiplayer() {
+        if (myScore !== null && oppScore !== null) {
+            mostrarResultados();
+        }
+    }
+
+    function mostrarResultados() {
+        resetarFundos();
+        
+        document.getElementById('block-target').style.backgroundColor = `rgb(${targetRGB.join(',')})`;
+        document.getElementById('block-p1').style.backgroundColor = `rgb(${myRGB.join(',')})`;
+        document.getElementById('score-p1').textContent = myScore.toFixed(1) + '%';
+
+        const blockP2 = document.getElementById('block-p2');
+        const winnerMsg = document.getElementById('winner-msg');
+        const btnRestart = document.getElementById('btn-restart-match');
+
+        if (modoJogo === 'single') {
+            blockP2.style.display = 'none';
+
+            if (myScore > 90) { winnerMsg.textContent = "Olho Biônico! 🎯"; winnerMsg.style.color = "#00ff88"; }
+            else if (myScore > 75) { winnerMsg.textContent = "Belo Acerto!"; winnerMsg.style.color = "#00d2ff"; }
+            else { winnerMsg.textContent = "Passe Longe..."; winnerMsg.style.color = "#ff2a5f"; }
+            
+            btnRestart.textContent = "Jogar Novamente";
+            btnRestart.disabled = false;
+        } else {
+            blockP2.style.display = 'flex';
+            blockP2.style.backgroundColor = `rgb(${oppRGB.join(',')})`;
+            document.getElementById('score-p2').textContent = oppScore.toFixed(1) + '%';
+
+            if (myScore > oppScore) {
+                winnerMsg.textContent = "Você Venceu! 🏆";
+                winnerMsg.style.color = "#00ff88";
+            } else if (oppScore > myScore) {
+                winnerMsg.textContent = "Você Perdeu!";
+                winnerMsg.style.color = "#ff2a5f";
+            } else {
+                winnerMsg.textContent = "Empate Perfeito!";
+                winnerMsg.style.color = "#00d2ff";
+            }
+
+            if (isHost) {
+                btnRestart.textContent = "Nova Rodada";
+                btnRestart.disabled = false;
+            } else {
+                btnRestart.textContent = "Aguardando Host...";
+                btnRestart.disabled = true;
+            }
+        }
+
+        showScreen('result-screen');
+    }
+
+    function resetarParaMenu() {
+        if (conn) { conn.close(); conn = null; }
+        if (peer) { peer.destroy(); peer = null; }
+        myScore = null;
+        oppScore = null;
+        resetarFundos();
+        document.getElementById('host-status').style.color = "#00d2ff";
+        showScreen('main-menu');
+    }
+
+    // === UTILITÁRIO DE COR ===
+    function hwbToRgb(h, w, b) {
+        w = w / 100; b = b / 100;
+        if (w + b >= 1) {
+            let gray = Math.round((w / (w + b)) * 255);
+            return [gray, gray, gray];
+        }
+        let c = 1; let x = c * (1 - Math.abs(((h / 60) % 2) - 1)); let m = 0;
+        let r_p = 0, g_p = 0, b_p = 0;
+        if (h >= 0 && h < 60) { r_p = c; g_p = x; b_p = 0; }
+        else if (h >= 60 && h < 120) { r_p = x; g_p = c; b_p = 0; }
+        else if (h >= 120 && h < 180) { r_p = 0; g_p = c; b_p = x; }
+        else if (h >= 180 && h < 240) { r_p = 0; g_p = x; b_p = c; }
+        else if (h >= 240 && h < 300) { r_p = x; g_p = 0; b_p = c; }
+        else if (h >= 300 && h < 360) { r_p = c; g_p = 0; b_p = x; }
+        let r = Math.round((r_p + m) * 255); let g = Math.round((g_p + m) * 255); let bl = Math.round((b_p + m) * 255);
+        r = Math.round(r * (1 - w - b) + (w * 255)); g = Math.round(g * (1 - w - b) + (w * 255)); bl = Math.round(bl * (1 - w - b) + (w * 255));
+        return [r, g, bl];
+    }
+</script>
+
+</body>
+</html>

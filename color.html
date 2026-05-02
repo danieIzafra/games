@@ -146,19 +146,22 @@
         .play-ui-container label, .play-ui-container .timer-small { text-shadow: 0 2px 5px rgba(0,0,0,0.9); }
 
         .sliders-wrapper { display: flex; flex-direction: column; gap: 15px; width: 100%; margin-top: 10px;}
-        .slider-group label { font-size: 0.8rem; font-weight: 600; display: flex; justify-content: space-between; color: rgba(255, 255, 255, 0.8); margin-bottom: 5px; }
+        
+        /* Textos escondidos na tela do jogo */
+        .slider-group label { display: none; }
+        
         input[type=range] { 
             -webkit-appearance: none; 
             width: 100%; 
-            height: 8px; /* Aumentado de 4px para 8px */
+            height: 16px; /* Barra mais grossa */
             border-radius: 10px; 
             outline: none; 
             background: rgba(255,255,255,0.1); 
         }
         input[type=range]::-webkit-slider-thumb { 
             -webkit-appearance: none; 
-            width: 28px; /* Aumentado de 24px para 28px */
-            height: 28px; /* Aumentado de 24px para 28px */
+            width: 34px; /* Bolinha mais grossa */
+            height: 34px; /* Bolinha mais grossa */
             border-radius: 50%; 
             background: #fff; 
             border: 4px solid #000; 
@@ -231,10 +234,10 @@
             position: absolute;
             top: 30px;
             right: 30px;
-            font-size: 2.5rem; /* Tamanho maior do número */
+            font-size: 4rem; /* Tamanho muito maior */
             font-weight: 900;
-            color: #ffffff; /* Cor branca */
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8); /* Sombra para garantir que dê pra ler em qualquer fundo */
+            color: #ffffff;
+            text-shadow: none; /* Sombra removida */
             z-index: 50;
         }
     </style>
@@ -258,7 +261,6 @@
 
 <div id="game-container">
     
-    <!-- TELA 0: IDENTIFICAÇÃO -->
     <div id="name-screen" class="screen">
         <div class="glass-ui">
             <h2>Identificação</h2>
@@ -268,7 +270,6 @@
         </div>
     </div>
 
-    <!-- TELA 1: MENU PRINCIPAL INOVADOR -->
     <div id="main-menu" class="screen">
         <div class="tech-info tech-top-left">SYS.VER 3.2.0<br><span id="neon-word" onclick="handleNeonClick()" style="padding: 5px; margin: -5px;">NEON</span> ENGINE</div>
         <div class="tech-info tech-top-right">P2P NETWORK<br>LATENCY: LOW</div>
@@ -294,7 +295,6 @@
         </div>
     </div>
 
-    <!-- TELA 2: LOBBY MULTIPLAYER (COM OPÇÕES) -->
     <div id="mp-lobby" class="screen">
         <div class="glass-ui" style="max-width: 400px; padding: 20px;">
             <h2>Criar Partida</h2>
@@ -337,7 +337,6 @@
         </div>
     </div>
 
-    <!-- TELA 3: HOST AGUARDANDO -->
     <div id="mp-host-wait" class="screen">
         <div class="glass-ui">
             <h2>Hospedando Partida</h2>
@@ -348,7 +347,6 @@
         </div>
     </div>
 
-    <!-- TELA 3.5: GUEST AGUARDANDO -->
     <div id="mp-guest-wait" class="screen">
         <div class="glass-ui">
             <h2>Conectando...</h2>
@@ -357,7 +355,6 @@
         </div>
     </div>
 
-    <!-- TELA 4: MEMORIZAÇÃO -->
     <div id="memorize-screen" class="screen">
         <div style="display:flex; flex-direction:column; align-items:center; z-index: 10;">
             <p class="tech-info" style="position:relative; margin-bottom: 20px; font-size: 1rem;" id="rodada-memorize-display">>>> CALIBRANDO VISÃO <<<</p>
@@ -365,12 +362,10 @@
         </div>
     </div>
 
-    <!-- TELA 5: JOGO / SLIDERS -->
     <div id="play-screen" class="screen">
-        <!-- Cronômetro isolado no canto superior direito -->
         <div id="timer-play" class="timer-top-right">20</div>
 
-        <div class="play-ui-container" style="margin-top: auto; margin-bottom: 40px; padding: 0 20px;">
+        <div class="play-ui-container" style="margin-top: auto; margin-bottom: 120px; padding: 0 20px;">
             <div class="sliders-wrapper">
                 <div class="slider-group">
                     <label>Matiz (Cor) <span id="hue-val">0°</span></label>
@@ -394,7 +389,6 @@
         </button>
     </div>
 
-    <!-- TELA 6: AGUARDANDO OPONENTE -->
     <div id="wait-opponent-screen" class="screen">
         <div class="glass-ui">
             <h2>Sincronizando...</h2>
@@ -402,7 +396,6 @@
         </div>
     </div>
 
-    <!-- TELA 7: RESULTADOS -->
     <div id="result-screen" class="screen">
         <div class="split-screen-layout">
             <div class="players-column">
@@ -710,9 +703,10 @@
 
     function atualizarPrevia() {
         const h = parseInt(inputs.h.value); const w = parseInt(inputs.w.value); const b = parseInt(inputs.b.value);
-        document.getElementById('hue-val').textContent = h + '°';
-        document.getElementById('white-val').textContent = w + '%';
-        document.getElementById('black-val').textContent = b + '%';
+        // Os elementos de texto foram escondidos visualmente, mas ainda atualizamos no DOM caso precise futuramente
+        if (document.getElementById('hue-val')) document.getElementById('hue-val').textContent = h + '°';
+        if (document.getElementById('white-val')) document.getElementById('white-val').textContent = w + '%';
+        if (document.getElementById('black-val')) document.getElementById('black-val').textContent = b + '%';
 
         const rgb = hwbToRgb(h, w, b);
         bgs.preview.style.backgroundColor = `rgb(${rgb.join(',')})`;

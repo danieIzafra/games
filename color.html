@@ -146,12 +146,11 @@
             color: rgba(255,255,255,0.3);
             letter-spacing: 2px;
             text-transform: uppercase;
-            pointer-events: auto; /* Permite clique nos cantos */
+            pointer-events: auto;
         }
         .tech-top-left { top: 30px; left: 30px; }
         .tech-top-right { top: 30px; right: 30px; text-align: right; }
 
-        /* Easter Egg Texto */
         #neon-word {
             transition: all 0.3s;
         }
@@ -360,6 +359,28 @@
         }
 
         .room-code-display { font-size: 2.5rem; font-weight: 900; letter-spacing: 8px; color: #00ff88; margin: 10px 0; }
+
+        /* MODAL CUSTOMIZADO (ALERTS) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 999;
+            display: none; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .modal-overlay.active { display: flex; opacity: 1; animation: fadeInModal 0.3s forwards; }
+        
+        @keyframes fadeInModal {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .alert-box {
+            border: 1px solid rgba(255, 42, 95, 0.3);
+            box-shadow: 0 20px 40px rgba(255, 42, 95, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -372,11 +393,19 @@
     <div class="shape shape2"></div>
 </div>
 
+<!-- Modal de Alerta Customizado -->
+<div id="custom-alert" class="modal-overlay">
+    <div class="glass-ui alert-box" style="max-width: 320px;">
+        <h2 style="color: #ff2a5f; font-size: 1.2rem; margin-bottom: 5px;">Atenção</h2>
+        <p id="alert-message" class="subtitle" style="color: #fff; margin-bottom: 15px;">Mensagem de erro aqui.</p>
+        <button class="btn-outline" style="border-color: rgba(255, 42, 95, 0.5); color: #ff2a5f;" onclick="fecharAlerta()">OK</button>
+    </div>
+</div>
+
 <div id="game-container">
     
     <!-- TELA 1: MENU PRINCIPAL INOVADOR -->
     <div id="main-menu" class="screen active">
-        <!-- Alteração aqui: ID e evento onclick para o Easter Egg -->
         <div class="tech-info tech-top-left">SYS.VER 3.1.4<br><span id="neon-word" onclick="handleNeonClick()" style="padding: 5px; margin: -5px;">NEON</span> ENGINE</div>
         <div class="tech-info tech-top-right">P2P NETWORK<br>LATENCY: LOW</div>
 
@@ -420,8 +449,17 @@
             <h2>Hospedando Partida</h2>
             <p class="subtitle">Seu código de acesso único:</p>
             <div class="room-code-display" id="display-room-code">----</div>
-            <p id="host-status" style="font-family: 'Space Mono', monospace; font-size: 0.8rem; color: #00d2ff; text-transform: uppercase;">Aguardando Ping...</p>
+            <p id="host-status" style="font-family: 'Space Mono', monospace; font-size: 0.8rem; color: #00d2ff; text-transform: uppercase;">Aguardando oponente...</p>
             <button style="background: transparent; border: 1px solid rgba(255,255,255,0.1);" onclick="cancelarSala()">Encerrar Sessão</button>
+        </div>
+    </div>
+
+    <!-- Nova Tela 3.5: Convidado Aguardando -->
+    <div id="mp-guest-wait" class="screen">
+        <div class="glass-ui">
+            <h2>Conectando...</h2>
+            <p id="guest-status" style="font-family: 'Space Mono', monospace; font-size: 0.8rem; color: #00d2ff; text-transform: uppercase;">Procurando sala...</p>
+            <button class="btn-outline" onclick="cancelarSala()">Cancelar</button>
         </div>
     </div>
 
@@ -463,7 +501,7 @@
         </div>
     </div>
 
-    <!-- TELA 7: RESULTADOS SPLIT-SCREEN FLAT -->
+    <!-- TELA 7: RESULTADOS -->
     <div id="result-screen" class="screen">
         <div class="split-screen-layout">
             <div class="players-column">
@@ -503,7 +541,6 @@
     let peer = null;
     let conn = null;
     
-    // Novas variáveis para guardar a cor HWB exata para o Easter Egg
     let targetH = 0, targetW = 0, targetB = 0; 
     let targetRGB = [];
     let myRGB = [];
@@ -515,10 +552,25 @@
     let intervalMemorize;
     let intervalPlay;
 
-    // Easter Egg State
     let easterEggAtivado = false;
     let clickCount = 0;
     let clickTimer = null;
+
+    // === SISTEMA DE ALERTAS CUSTOMIZADO ===
+    let callbackAlerta = null;
+    function mostrarAlerta(mensagem, callback = null) {
+        document.getElementById('alert-message').innerText = mensagem;
+        document.getElementById('custom-alert').classList.add('active');
+        callbackAlerta = callback;
+    }
+
+    function fecharAlerta() {
+        document.getElementById('custom-alert').classList.remove('active');
+        if (callbackAlerta) {
+            callbackAlerta();
+            callbackAlerta = null;
+        }
+    }
 
     // === ELEMENTOS UI ===
     const bgs = {
@@ -539,7 +591,7 @@
     function handleNeonClick() {
         clickCount++;
         if (clickCount === 1) {
-            clickTimer = setTimeout(() => { clickCount = 0; }, 400); // Reseta se demorar mais que 400ms para o segundo toque
+            clickTimer = setTimeout(() => { clickCount = 0; }, 400);
         } else if (clickCount === 2) {
             clearTimeout(clickTimer);
             clickCount = 0;
@@ -593,6 +645,7 @@
         modoJogo = 'multi';
         isHost = true;
         document.getElementById('host-status').innerText = "Iniciando servidor P2P...";
+        document.getElementById('host-status').style.color = "#00d2ff";
         showScreen('mp-host-wait');
 
         const code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -601,39 +654,52 @@
         peer = new Peer('cmatch-' + code);
 
         peer.on('open', () => {
-            document.getElementById('host-status').innerText = "Aguardando conexão...";
+            document.getElementById('host-status').innerText = "Aguardando oponente...";
         });
 
         peer.on('connection', (connection) => {
             conn = connection;
-            document.getElementById('host-status').innerText = "Adversário conectado!";
-            document.getElementById('host-status').style.color = "#00ff88";
+            document.getElementById('host-status').innerText = "Oponente conectando. Entrando...";
+            
             configurarRecepcaoDados();
-            setTimeout(() => {
-                gerarCorAleatoria();
-                // Envia os dados HWB pelo Host para o Guest poder usar o Easter Egg tbm
-                conn.send({ type: 'START', color: targetRGB, hwb: [targetH, targetW, targetB] });
-                iniciarFaseMemorizacao();
-            }, 1000);
+        });
+
+        peer.on('error', (err) => {
+            mostrarAlerta("Erro no servidor. Tente novamente.", resetarParaMenu);
         });
     }
 
     function entrarSala() {
         const code = document.getElementById('room-code-input').value.trim();
-        if (code.length !== 4) return alert("Digite um código válido de 4 dígitos.");
+        if (code.length !== 4) return mostrarAlerta("Digite um código válido de 4 dígitos.");
 
         modoJogo = 'multi';
         isHost = false;
         
+        document.getElementById('guest-status').innerText = "Procurando sala...";
+        showScreen('mp-guest-wait');
+
         peer = new Peer();
         peer.on('open', () => {
             conn = peer.connect('cmatch-' + code);
+            
             conn.on('open', () => {
+                document.getElementById('guest-status').innerText = "Entrando na sala...";
                 configurarRecepcaoDados();
+                
+                // Avisa ao Host que o oponente entrou de verdade e está pronto
+                setTimeout(() => {
+                    conn.send({ type: 'GUEST_READY' });
+                }, 800); 
             });
+
             conn.on('error', () => {
-                alert("Sala não encontrada! Verifique o código.");
+                mostrarAlerta("Erro ao tentar conectar à sala.");
             });
+        });
+
+        peer.on('error', (err) => {
+            mostrarAlerta("Sala não encontrada! Verifique o código e tente novamente.", resetarParaMenu);
         });
     }
 
@@ -644,15 +710,28 @@
 
     function configurarRecepcaoDados() {
         conn.on('data', (dados) => {
+            // Se eu sou o Host e o Convidado avisou que está pronto, iniciamos!
+            if (dados.type === 'GUEST_READY' && isHost) {
+                document.getElementById('host-status').innerText = "Sincronizando partida...";
+                document.getElementById('host-status').style.color = "#00ff88";
+                
+                setTimeout(() => {
+                    gerarCorAleatoria();
+                    conn.send({ type: 'START', color: targetRGB, hwb: [targetH, targetW, targetB] });
+                    iniciarFaseMemorizacao();
+                }, 1000);
+            }
+
             if (dados.type === 'START') {
                 targetRGB = dados.color;
-                if (dados.hwb) { // Se recebeu os dados HWB exatos do Host
+                if (dados.hwb) { 
                     targetH = dados.hwb[0];
                     targetW = dados.hwb[1];
                     targetB = dados.hwb[2];
                 }
                 iniciarFaseMemorizacao();
             }
+
             if (dados.type === 'SCORE') {
                 oppScore = dados.score;
                 oppRGB = dados.guessRGB;
@@ -661,8 +740,7 @@
         });
 
         conn.on('close', () => {
-            alert("Sessão finalizada pelo oponente.");
-            resetarParaMenu();
+            mostrarAlerta("Conexão perdida! O servidor ou oponente foi desconectado.", resetarParaMenu);
         });
     }
 
@@ -713,7 +791,6 @@
         bgs.target.style.opacity = '0';
         bgs.preview.style.opacity = '1';
         
-        // Aplicação do Easter Egg na hora de montar a tela
         if (easterEggAtivado) {
             inputs.h.value = targetH;
             inputs.w.value = targetW;
